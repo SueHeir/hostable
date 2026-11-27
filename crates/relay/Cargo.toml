@@ -1,0 +1,16 @@
+[package]
+name = "hostable-relay"
+description = "Rooms, join codes and message forwarding between a Hostable host and phones"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+rand.workspace = true
+hostable-protocol.workspace = true
+axum = { version = "0.8", features = ["ws"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "net", "time"] }
+futures-util = "0.3"
