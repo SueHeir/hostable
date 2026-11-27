@@ -1,0 +1,1 @@
+Do everything in /Users/suehr/Documents/GitHub/hostable/.goal/hostable-mvp.md and prove it — done when the last turn quotes scripts/verify.sh printing VERIFY: ALL GREEN and says HOSTABLE-MVP-OK. Stop after 500 turns.
