@@ -6,8 +6,10 @@ edition.workspace = true
 license.workspace = true
 repository.workspace = true
 
+[lib]
+crate-type = ["cdylib", "rlib"]
+
 [dependencies]
 serde.workspace = true
 serde_json.workspace = true
-hostable-protocol.workspace = true
-hostable-rules-api.workspace = true
+hostable-sdk.workspace = true

@@ -11,6 +11,9 @@ serde.workspace = true
 serde_json.workspace = true
 rand.workspace = true
 hostable-protocol.workspace = true
-axum = { version = "0.8", features = ["ws"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync", "net", "time"] }
-futures-util = "0.3"
+axum = { workspace = true }
+tokio = { workspace = true }
+futures-util = { workspace = true }
+
+[dev-dependencies]
+tokio-tungstenite = { workspace = true }

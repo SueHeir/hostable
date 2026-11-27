@@ -14,3 +14,4 @@ hostable-rules-api.workspace = true
 
 [dev-dependencies]
 hostable-buzzer = { path = "../../games/buzzer" }
+hostable-rules-api.workspace = true

@@ -5,12 +5,26 @@
 //! [`RelayToPhone`]); what the host and a phone say to each other travels
 //! inside them as [`HostToPhone`] and [`PhoneInput`], which the relay
 //! forwards without looking.
+//!
+//! TypeScript types for the web client are generated from these with
+//! `ts-rs` (`cargo test -p hostable-protocol export_bindings`), so the two
+//! sides can't drift apart.
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use ts_rs::TS;
+
+mod table;
+mod widget;
+
+pub use table::{PlayerPanel, Scene, Shape, TableView};
+pub use widget::{
+    ButtonStyle, CardFace, ChoiceOption, ChoiceStyle, Direction, MeterStyle, Tab, TextStyle,
+    Widget, MAX_TEXT_CHARS,
+};
 
 /// Version of this protocol. Bumped on any breaking change.
-pub const PROTOCOL_VERSION: u32 = 1;
+pub const PROTOCOL_VERSION: u32 = 2;
 
 /// A room's join code, e.g. `KQWX`.
 pub type RoomCode = String;
@@ -19,23 +33,39 @@ pub type RoomCode = String;
 /// reconnects: a phone that rejoins with its token gets the same id.
 pub type PlayerId = u32;
 
+/// Inputs whose widget id starts with this are meant for the host itself
+/// (settings, subscriptions), never for the game's rules.
+pub const HOST_INPUT_PREFIX: char = '$';
+/// `value: true|false`: also send me the table view (laptops, remote play).
+pub const INPUT_WANT_TABLE: &str = "$table";
+/// `value: true|false`: "only ask me when I can respond".
+pub const INPUT_AUTO_PASS: &str = "$auto_pass";
+/// `value`: a Web Push subscription (`{endpoint, keys: {p256dh, auth}}`).
+pub const INPUT_PUSH: &str = "$push";
+
 // ---------------------------------------------------------------------------
 // Host <-> relay
 // ---------------------------------------------------------------------------
 
 /// What the host sends to the relay.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
 pub enum HostToRelay {
     /// Open a new room. Must be the first message on a fresh host socket.
     CreateRoom,
-    /// Take back a room after the host dropped. Must be the first message.
+    /// Take back a room after the host dropped, or hand a room to another
+    /// host (desktop to cloud) that was given the code and host token.
+    /// Must be the first message.
     ReclaimRoom { code: RoomCode, host_token: String },
     /// Send a message to one player's phone.
     ToPlayer {
         player: PlayerId,
         message: HostToPhone,
     },
+    /// Make a seat for a player who will arrive later with a link (remote
+    /// and async games). The relay answers with [`RelayToHost::PlayerAdded`].
+    AddPlayer { name: String },
     /// Remove a player from the room. Their token stops working.
     Kick { player: PlayerId },
     /// Stop new players from joining (rejoins still work).
@@ -45,8 +75,9 @@ pub enum HostToRelay {
 }
 
 /// What the relay sends to the host.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
 pub enum RelayToHost {
     RoomCreated {
         code: RoomCode,
@@ -58,6 +89,14 @@ pub enum RelayToHost {
     PlayerJoined {
         player: PlayerId,
         name: String,
+        #[serde(default)]
+        color: String,
+    },
+    /// Answer to [`HostToRelay::AddPlayer`]: the token goes into a share link.
+    PlayerAdded {
+        player: PlayerId,
+        name: String,
+        player_token: String,
     },
     /// A known player came back after a drop.
     PlayerReturned {
@@ -81,12 +120,20 @@ pub enum RelayToHost {
 // ---------------------------------------------------------------------------
 
 /// What a phone sends to the relay.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
 pub enum PhoneToRelay {
     /// Join a room as a new player. First message on a fresh phone socket.
-    Join { code: RoomCode, name: String },
-    /// Come back to a seat with the token from an earlier `Joined`.
+    Join {
+        code: RoomCode,
+        name: String,
+        /// A CSS colour like `#e4572e`; anything else is dropped.
+        #[serde(default)]
+        color: String,
+    },
+    /// Come back to a seat with the token from an earlier `Joined` (or from
+    /// a share link).
     Rejoin {
         code: RoomCode,
         player_token: String,
@@ -96,8 +143,9 @@ pub enum PhoneToRelay {
 }
 
 /// What the relay sends to a phone.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
 pub enum RelayToPhone {
     /// Store `player_token`; it is the only way back into this seat.
     Joined {
@@ -109,6 +157,8 @@ pub enum RelayToPhone {
     },
     /// The host is reconnecting; keep the last UI on screen.
     HostAway,
+    /// The host is back.
+    HostBack,
     FromHost {
         message: HostToPhone,
     },
@@ -122,18 +172,37 @@ pub enum RelayToPhone {
 // ---------------------------------------------------------------------------
 
 /// What the host tells a phone.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
 #[serde(tag = "type", rename_all = "snake_case")]
+#[ts(export)]
 pub enum HostToPhone {
     /// Replace the whole screen. `version` only ever goes up, so a phone can
     /// ignore a stale tree that arrives late.
-    Ui { version: u64, ui: Widget },
+    Ui {
+        #[ts(type = "number")]
+        version: u64,
+        ui: Widget,
+    },
+    /// The shared table, for phones that asked for it with `$table`.
+    Table {
+        #[ts(type = "number")]
+        version: u64,
+        table: TableView,
+    },
     /// A short buzz or sound on the phone.
     Feedback { kind: Feedback },
+    /// Who this phone is in the game.
+    Seat {
+        /// `null` for a spectator.
+        seat: Option<u32>,
+        name: String,
+        game: String,
+    },
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TS)]
 #[serde(rename_all = "snake_case")]
+#[ts(export)]
 pub enum Feedback {
     Tap,
     Success,
@@ -142,13 +211,17 @@ pub enum Feedback {
 }
 
 /// Something a player did on their phone.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, TS)]
+#[ts(export)]
 pub struct PhoneInput {
     /// The `id` of the widget that was used.
     pub widget: String,
-    /// What it sent: `null` for a button, the picked value(s) for a choice,
-    /// the text for a text input.
+    /// What it sent: `null` for a button, the picked value (or a list of
+    /// values) for a choice or hand, the text for a text input, a
+    /// [`Direction`] for a dpad, `{dx, dy}` or `{tap: true}` for a touchpad,
+    /// a list of strokes for a drawing.
     #[serde(default)]
+    #[ts(type = "unknown")]
     pub value: Value,
 }
 
@@ -159,162 +232,18 @@ impl PhoneInput {
             value: Value::Null,
         }
     }
-}
 
-// ---------------------------------------------------------------------------
-// Phone UI description language
-// ---------------------------------------------------------------------------
-
-/// A node of the phone UI tree. Games can only describe screens with these
-/// widgets; they can never send HTML or scripts to a phone.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
-pub enum Widget {
-    Column {
-        children: Vec<Widget>,
-    },
-    Row {
-        children: Vec<Widget>,
-    },
-    Text {
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        id: Option<String>,
-        value: String,
-        #[serde(default, skip_serializing_if = "is_default")]
-        style: TextStyle,
-    },
-    Button {
-        id: String,
-        label: String,
-        #[serde(default, skip_serializing_if = "is_default")]
-        style: ButtonStyle,
-        #[serde(default, skip_serializing_if = "is_false")]
-        disabled: bool,
-    },
-    Choice {
-        id: String,
-        #[serde(default, skip_serializing_if = "is_default")]
-        style: ChoiceStyle,
-        options: Vec<ChoiceOption>,
-        /// How many options may be picked at once. 1 sends a single value,
-        /// more sends a list.
-        #[serde(default = "one")]
-        max: u32,
-    },
-    TextInput {
-        id: String,
-        #[serde(default)]
-        placeholder: String,
-        max_len: u32,
-    },
-    /// A countdown, e.g. for a reaction window. Purely visual; the host
-    /// enforces the deadline.
-    Timer {
-        ends_in_ms: u64,
-    },
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum TextStyle {
-    #[default]
-    Body,
-    Title,
-    Muted,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ButtonStyle {
-    #[default]
-    Normal,
-    Primary,
-    /// Fills most of the screen; for buzzers and big single actions.
-    Huge,
-}
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ChoiceStyle {
-    #[default]
-    List,
-    Grid,
-    Cards,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct ChoiceOption {
-    pub value: String,
-    pub label: String,
-    /// Path of an image in the pack's `phone_assets`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub image: Option<String>,
-    #[serde(default, skip_serializing_if = "is_false")]
-    pub disabled: bool,
-}
-
-impl Widget {
-    pub fn text(value: impl Into<String>) -> Self {
-        Widget::Text {
-            id: None,
+    pub fn with(widget: impl Into<String>, value: impl Into<Value>) -> Self {
+        Self {
+            widget: widget.into(),
             value: value.into(),
-            style: TextStyle::Body,
         }
     }
 
-    pub fn title(value: impl Into<String>) -> Self {
-        Widget::Text {
-            id: None,
-            value: value.into(),
-            style: TextStyle::Title,
-        }
+    /// Meant for the host (settings), not for the rules.
+    pub fn is_host_input(&self) -> bool {
+        self.widget.starts_with(HOST_INPUT_PREFIX)
     }
-
-    pub fn button(id: impl Into<String>, label: impl Into<String>, style: ButtonStyle) -> Self {
-        Widget::Button {
-            id: id.into(),
-            label: label.into(),
-            style,
-            disabled: false,
-        }
-    }
-
-    /// Number of nodes in this tree, used to cap the size of what a game
-    /// may send to a phone.
-    pub fn node_count(&self) -> usize {
-        match self {
-            Widget::Column { children } | Widget::Row { children } => {
-                1 + children.iter().map(Widget::node_count).sum::<usize>()
-            }
-            Widget::Choice { options, .. } => 1 + options.len(),
-            _ => 1,
-        }
-    }
-
-    /// Whether a widget with this id exists in the tree, so the host can
-    /// drop input for buttons the phone shouldn't have.
-    pub fn has_input(&self, wanted: &str) -> bool {
-        match self {
-            Widget::Column { children } | Widget::Row { children } => {
-                children.iter().any(|c| c.has_input(wanted))
-            }
-            Widget::Button { id, disabled, .. } => id == wanted && !disabled,
-            Widget::Choice { id, .. } | Widget::TextInput { id, .. } => id == wanted,
-            Widget::Text { .. } | Widget::Timer { .. } => false,
-        }
-    }
-}
-
-fn is_default<T: Default + PartialEq>(v: &T) -> bool {
-    *v == T::default()
-}
-
-fn is_false(b: &bool) -> bool {
-    !*b
-}
-
-fn one() -> u32 {
-    1
 }
 
 #[cfg(test)]
@@ -351,17 +280,22 @@ mod tests {
     }
 
     #[test]
-    fn disabled_buttons_take_no_input() {
-        let ui = Widget::Row {
-            children: vec![Widget::Button {
-                id: "undo".into(),
-                label: "Undo".into(),
-                style: ButtonStyle::Normal,
-                disabled: true,
-            }],
-        };
-        assert!(!ui.has_input("undo"));
-        assert!(!ui.has_input("missing"));
-        assert_eq!(ui.node_count(), 2);
+    fn join_without_colour_still_parses() {
+        let msg: PhoneToRelay =
+            serde_json::from_str(r#"{"type":"join","code":"BCDF","name":"Ana"}"#).unwrap();
+        assert_eq!(
+            msg,
+            PhoneToRelay::Join {
+                code: "BCDF".into(),
+                name: "Ana".into(),
+                color: String::new()
+            }
+        );
+    }
+
+    #[test]
+    fn host_inputs_are_recognised() {
+        assert!(PhoneInput::with(INPUT_WANT_TABLE, true).is_host_input());
+        assert!(!PhoneInput::press("buzz").is_host_input());
     }
 }

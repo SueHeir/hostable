@@ -1,0 +1,7 @@
+[net]
+# The wizards rules live in a private GitHub repo; let git use your credentials.
+git-fetch-with-cli = true
+
+[env]
+# Where `cargo test -p hostable-protocol` writes the generated TypeScript types.
+TS_RS_EXPORT_DIR = { value = "client/src/protocol", relative = true }

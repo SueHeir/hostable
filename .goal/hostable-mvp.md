@@ -193,7 +193,7 @@ phase with green tests.
 
 ## Progress checklist (tick IN THIS FILE as you go — this is the resume state)
 
-- [ ] Re-verified current state live; branch `goal/mvp` created
+- [x] Re-verified current state live; branch `goal/mvp` created
 - [ ] Phase 1 plumbing: client, desktop host + smoke test, relay limits
 - [ ] Phase 2: sandbox, SDK, reaction windows, full widgets, wizards-duel, packs
 - [ ] Phase 3: hex trading game

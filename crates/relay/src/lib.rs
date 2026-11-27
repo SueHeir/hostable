@@ -2,15 +2,19 @@
 //!
 //! The relay connects one host and many phones over WebSockets. It hands out
 //! room codes and tokens and forwards messages, but never runs game logic and
-//! never reads what the host and phones say to each other.
+//! never reads what the host and phones say to each other. It stores no
+//! personal data beyond the display names players type, and only in memory
+//! (or in its optional state file, so rooms survive a relay restart).
 
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use hostable_protocol::{HostToRelay, PhoneInput, PlayerId, RelayToHost, RelayToPhone, RoomCode};
 use rand::{distributions::Alphanumeric, Rng};
+use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 
+pub mod limits;
 pub mod server;
 
 /// Letters used in room codes. No look-alikes (I, L, O, 0, 1) and no vowels,
@@ -19,18 +23,26 @@ const CODE_LETTERS: &[u8] = b"BCDFGHJKMNPQRSTVWXZ";
 const CODE_LEN: usize = 4;
 const TOKEN_LEN: usize = 32;
 pub const MAX_NAME_CHARS: usize = 24;
+/// Most players (including spectators) in one room.
+pub const MAX_PLAYERS: usize = 64;
 /// How long a room waits for its host to come back.
 pub const HOST_GRACE: Duration = Duration::from_secs(10 * 60);
 
 /// A queue of JSON text frames for one socket.
 pub type Outbox = UnboundedSender<String>;
 
+/// Identifies one socket, so a stale connection can't act after a newer one
+/// took its place.
+pub type ConnId = u64;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RelayError {
     NoSuchRoom,
     BadToken,
     RoomLocked,
+    RoomFull,
     BadName,
+    TooManyAttempts,
 }
 
 impl RelayError {
@@ -38,20 +50,23 @@ impl RelayError {
         match self {
             RelayError::NoSuchRoom => "No game with that code.",
             RelayError::BadToken => "That seat is no longer valid.",
-            RelayError::RoomLocked => "This game has already started.",
+            RelayError::RoomLocked => "This game isn't taking new players.",
+            RelayError::RoomFull => "This game is full.",
             RelayError::BadName => "Please enter a name.",
+            RelayError::TooManyAttempts => "Too many wrong codes. Try again in a minute.",
         }
     }
 }
 
 struct Player {
     token: String,
-    outbox: Option<Outbox>,
+    name: String,
+    outbox: Option<(ConnId, Outbox)>,
 }
 
 struct Room {
     host_token: String,
-    host: Option<Outbox>,
+    host: Option<(ConnId, Outbox)>,
     host_left_at: Option<Instant>,
     players: HashMap<PlayerId, Player>,
     next_player: PlayerId,
@@ -60,22 +75,57 @@ struct Room {
 
 impl Room {
     fn to_host(&self, msg: &RelayToHost) {
-        if let Some(host) = &self.host {
+        if let Some((_, host)) = &self.host {
             let _ = host.send(to_json(msg));
         }
     }
 
     fn to_player(&self, player: PlayerId, msg: &RelayToPhone) {
-        if let Some(outbox) = self.players.get(&player).and_then(|p| p.outbox.as_ref()) {
+        if let Some((_, outbox)) = self.players.get(&player).and_then(|p| p.outbox.as_ref()) {
             let _ = outbox.send(to_json(msg));
         }
     }
+
+    fn to_all_players(&self, msg: &RelayToPhone) {
+        for id in self.players.keys() {
+            self.to_player(*id, msg);
+        }
+    }
+
+    fn host_is(&self, conn: ConnId) -> bool {
+        self.host.as_ref().is_some_and(|(c, _)| *c == conn)
+    }
+}
+
+/// What the relay writes to its state file: rooms and tokens, no sockets.
+#[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
+pub struct Saved {
+    pub rooms: Vec<SavedRoom>,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SavedRoom {
+    pub code: RoomCode,
+    pub host_token: String,
+    pub players: Vec<SavedPlayer>,
+    pub next_player: PlayerId,
+    pub locked: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SavedPlayer {
+    pub id: PlayerId,
+    pub token: String,
+    pub name: String,
 }
 
 /// All rooms on this relay.
 #[derive(Default)]
 pub struct Registry {
     rooms: HashMap<RoomCode, Room>,
+    next_conn: ConnId,
+    /// Rooms or tokens changed since the last save.
+    dirty: bool,
 }
 
 impl Registry {
@@ -83,18 +133,103 @@ impl Registry {
         self.rooms.len()
     }
 
-    /// Open a room for a new host. Returns its code.
-    pub fn create_room(&mut self, host: Outbox) -> RoomCode {
+    fn conn(&mut self) -> ConnId {
+        self.next_conn += 1;
+        self.next_conn
+    }
+
+    /// Whether anything worth saving changed since [`Registry::mark_saved`].
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+
+    pub fn mark_saved(&mut self) {
+        self.dirty = false;
+    }
+
+    pub fn save(&self) -> Saved {
+        let mut rooms: Vec<SavedRoom> = self
+            .rooms
+            .iter()
+            .map(|(code, r)| {
+                let mut players: Vec<SavedPlayer> = r
+                    .players
+                    .iter()
+                    .map(|(id, p)| SavedPlayer {
+                        id: *id,
+                        token: p.token.clone(),
+                        name: p.name.clone(),
+                    })
+                    .collect();
+                players.sort_by_key(|p| p.id);
+                SavedRoom {
+                    code: code.clone(),
+                    host_token: r.host_token.clone(),
+                    players,
+                    next_player: r.next_player,
+                    locked: r.locked,
+                }
+            })
+            .collect();
+        rooms.sort_by(|a, b| a.code.cmp(&b.code));
+        Saved { rooms }
+    }
+
+    /// Rebuild rooms after a restart. Every host gets [`HOST_GRACE`] from
+    /// `now` to come back.
+    pub fn restore(saved: Saved, now: Instant) -> Self {
+        let rooms = saved
+            .rooms
+            .into_iter()
+            .map(|r| {
+                let players = r
+                    .players
+                    .into_iter()
+                    .map(|p| {
+                        (
+                            p.id,
+                            Player {
+                                token: p.token,
+                                name: p.name,
+                                outbox: None,
+                            },
+                        )
+                    })
+                    .collect();
+                (
+                    r.code,
+                    Room {
+                        host_token: r.host_token,
+                        host: None,
+                        host_left_at: Some(now),
+                        players,
+                        next_player: r.next_player,
+                        locked: r.locked,
+                    },
+                )
+            })
+            .collect();
+        Self {
+            rooms,
+            next_conn: 0,
+            dirty: false,
+        }
+    }
+
+    /// Open a room for a new host. Returns its code and the host's
+    /// connection id.
+    pub fn create_room(&mut self, host: Outbox) -> (RoomCode, ConnId) {
         let code = loop {
             let code = new_code();
             if !self.rooms.contains_key(&code) {
                 break code;
             }
         };
+        let conn = self.conn();
         let host_token = new_token();
         let room = Room {
             host_token: host_token.clone(),
-            host: Some(host),
+            host: Some((conn, host)),
             host_left_at: None,
             players: HashMap::new(),
             next_player: 1,
@@ -105,36 +240,79 @@ impl Registry {
             host_token,
         });
         self.rooms.insert(code.clone(), room);
-        code
+        self.dirty = true;
+        (code, conn)
     }
 
-    /// A host that dropped takes its room back.
+    /// A host that dropped takes its room back, or another host with the
+    /// code and host token takes it over (desktop to cloud handoff). A host
+    /// still connected is told and cut off.
     pub fn reclaim_room(
         &mut self,
         code: &str,
         host_token: &str,
         host: Outbox,
-    ) -> Result<(), RelayError> {
+    ) -> Result<ConnId, RelayError> {
+        let conn = self.conn();
         let room = self.rooms.get_mut(code).ok_or(RelayError::NoSuchRoom)?;
-        if room.host_token != host_token {
+        if !constant_time_eq(&room.host_token, host_token) {
             return Err(RelayError::BadToken);
         }
-        room.host = Some(host);
+        room.to_host(&RelayToHost::Error {
+            message: "Another host took over this room.".into(),
+        });
+        room.host = Some((conn, host));
         room.host_left_at = None;
         room.to_host(&RelayToHost::RoomReclaimed {
             code: code.to_owned(),
         });
-        Ok(())
+        room.to_all_players(&RelayToPhone::HostBack);
+        Ok(conn)
     }
 
-    /// A message from the host of `code`. Returns false if the room closed.
-    pub fn from_host(&mut self, code: &str, msg: HostToRelay) -> bool {
+    /// A message from the host of `code`. Returns false if the room closed
+    /// or this host was replaced, so its socket should close.
+    pub fn from_host(&mut self, code: &str, conn: ConnId, msg: HostToRelay) -> bool {
         let Some(room) = self.rooms.get_mut(code) else {
             return false;
         };
+        if !room.host_is(conn) {
+            return false;
+        }
         match msg {
             HostToRelay::ToPlayer { player, message } => {
                 room.to_player(player, &RelayToPhone::FromHost { message });
+            }
+            HostToRelay::AddPlayer { name } => {
+                let Some(name) = clean_name(&name) else {
+                    room.to_host(&RelayToHost::Error {
+                        message: RelayError::BadName.message().into(),
+                    });
+                    return true;
+                };
+                if room.players.len() >= MAX_PLAYERS {
+                    room.to_host(&RelayToHost::Error {
+                        message: RelayError::RoomFull.message().into(),
+                    });
+                    return true;
+                }
+                let player = room.next_player;
+                room.next_player += 1;
+                let player_token = new_token();
+                room.players.insert(
+                    player,
+                    Player {
+                        token: player_token.clone(),
+                        name: name.clone(),
+                        outbox: None,
+                    },
+                );
+                room.to_host(&RelayToHost::PlayerAdded {
+                    player,
+                    name,
+                    player_token,
+                });
+                self.dirty = true;
             }
             HostToRelay::Kick { player } => {
                 room.to_player(
@@ -144,18 +322,18 @@ impl Registry {
                     },
                 );
                 room.players.remove(&player);
+                self.dirty = true;
             }
-            HostToRelay::Lock { locked } => room.locked = locked,
+            HostToRelay::Lock { locked } => {
+                room.locked = locked;
+                self.dirty = true;
+            }
             HostToRelay::CloseRoom => {
-                for id in room.players.keys() {
-                    room.to_player(
-                        *id,
-                        &RelayToPhone::Error {
-                            message: "The game has ended.".into(),
-                        },
-                    );
-                }
+                room.to_all_players(&RelayToPhone::Error {
+                    message: "The game has ended.".into(),
+                });
                 self.rooms.remove(code);
+                self.dirty = true;
                 return false;
             }
             HostToRelay::CreateRoom | HostToRelay::ReclaimRoom { .. } => {
@@ -168,22 +346,33 @@ impl Registry {
     }
 
     /// The host's socket closed. The room waits [`HOST_GRACE`] for it.
-    pub fn host_left(&mut self, code: &str, now: Instant) {
+    pub fn host_left(&mut self, code: &str, conn: ConnId, now: Instant) {
         if let Some(room) = self.rooms.get_mut(code) {
+            if !room.host_is(conn) {
+                return;
+            }
             room.host = None;
             room.host_left_at = Some(now);
-            for id in room.players.keys() {
-                room.to_player(*id, &RelayToPhone::HostAway);
-            }
+            room.to_all_players(&RelayToPhone::HostAway);
         }
     }
 
-    /// A new player joins. Returns their id.
-    pub fn join(&mut self, code: &str, name: &str, outbox: Outbox) -> Result<PlayerId, RelayError> {
+    /// A new player joins. Returns their id and connection id.
+    pub fn join(
+        &mut self,
+        code: &str,
+        name: &str,
+        color: &str,
+        outbox: Outbox,
+    ) -> Result<(PlayerId, ConnId), RelayError> {
         let code = code.trim().to_ascii_uppercase();
+        let conn = self.conn();
         let room = self.rooms.get_mut(&code).ok_or(RelayError::NoSuchRoom)?;
         if room.locked {
             return Err(RelayError::RoomLocked);
+        }
+        if room.players.len() >= MAX_PLAYERS {
+            return Err(RelayError::RoomFull);
         }
         let name = clean_name(name).ok_or(RelayError::BadName)?;
         let player = room.next_player;
@@ -193,7 +382,8 @@ impl Registry {
             player,
             Player {
                 token: player_token.clone(),
-                outbox: Some(outbox),
+                name: name.clone(),
+                outbox: Some((conn, outbox)),
             },
         );
         room.to_player(
@@ -203,8 +393,16 @@ impl Registry {
                 player_token,
             },
         );
-        room.to_host(&RelayToHost::PlayerJoined { player, name });
-        Ok(player)
+        if room.host.is_none() {
+            room.to_player(player, &RelayToPhone::HostAway);
+        }
+        room.to_host(&RelayToHost::PlayerJoined {
+            player,
+            name,
+            color: clean_color(color),
+        });
+        self.dirty = true;
+        Ok((player, conn))
     }
 
     /// A player comes back with their token.
@@ -213,46 +411,62 @@ impl Registry {
         code: &str,
         token: &str,
         outbox: Outbox,
-    ) -> Result<PlayerId, RelayError> {
+    ) -> Result<(PlayerId, ConnId), RelayError> {
         let code = code.trim().to_ascii_uppercase();
+        let conn = self.conn();
         let room = self.rooms.get_mut(&code).ok_or(RelayError::NoSuchRoom)?;
         let (&player, slot) = room
             .players
             .iter_mut()
-            .find(|(_, p)| p.token == token)
+            .find(|(_, p)| constant_time_eq(&p.token, token))
             .ok_or(RelayError::BadToken)?;
-        slot.outbox = Some(outbox);
+        if let Some((_, old)) = slot.outbox.replace((conn, outbox)) {
+            let _ = old.send(to_json(&RelayToPhone::Error {
+                message: "This seat was opened somewhere else.".into(),
+            }));
+        }
         room.to_player(player, &RelayToPhone::Rejoined { player });
         if room.host.is_none() {
             room.to_player(player, &RelayToPhone::HostAway);
         }
         room.to_host(&RelayToHost::PlayerReturned { player });
-        Ok(player)
+        Ok((player, conn))
     }
 
-    pub fn from_player(&mut self, code: &str, player: PlayerId, input: PhoneInput) {
+    pub fn from_player(&mut self, code: &str, player: PlayerId, conn: ConnId, input: PhoneInput) {
         if let Some(room) = self.rooms.get(code) {
-            if room.players.contains_key(&player) {
+            let current = room
+                .players
+                .get(&player)
+                .and_then(|p| p.outbox.as_ref())
+                .is_some_and(|(c, _)| *c == conn);
+            if current {
                 room.to_host(&RelayToHost::FromPlayer { player, input });
             }
         }
     }
 
-    pub fn player_left(&mut self, code: &str, player: PlayerId) {
+    pub fn player_left(&mut self, code: &str, player: PlayerId, conn: ConnId) {
         if let Some(room) = self.rooms.get_mut(code) {
             if let Some(slot) = room.players.get_mut(&player) {
-                slot.outbox = None;
-                room.to_host(&RelayToHost::PlayerAway { player });
+                if slot.outbox.as_ref().is_some_and(|(c, _)| *c == conn) {
+                    slot.outbox = None;
+                    room.to_host(&RelayToHost::PlayerAway { player });
+                }
             }
         }
     }
 
     /// Close rooms whose host has been gone longer than [`HOST_GRACE`].
     pub fn sweep(&mut self, now: Instant) {
+        let before = self.rooms.len();
         self.rooms.retain(|_, room| {
             room.host_left_at
                 .is_none_or(|left| now.duration_since(left) < HOST_GRACE)
         });
+        if self.rooms.len() != before {
+            self.dirty = true;
+        }
     }
 }
 
@@ -271,6 +485,14 @@ fn new_token() -> String {
         .collect()
 }
 
+fn constant_time_eq(a: &str, b: &str) -> bool {
+    a.len() == b.len()
+        && a.bytes()
+            .zip(b.bytes())
+            .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+            == 0
+}
+
 /// Trim a player name, drop control characters and cap its length.
 fn clean_name(name: &str) -> Option<String> {
     let cleaned: String = name
@@ -286,142 +508,21 @@ fn clean_name(name: &str) -> Option<String> {
     (!cleaned.is_empty()).then_some(cleaned)
 }
 
+/// Keep a `#rrggbb` colour; drop anything else.
+fn clean_color(color: &str) -> String {
+    let ok = color.len() == 7
+        && color.starts_with('#')
+        && color[1..].chars().all(|c| c.is_ascii_hexdigit());
+    if ok {
+        color.to_ascii_lowercase()
+    } else {
+        String::new()
+    }
+}
+
 fn to_json<T: serde::Serialize>(msg: &T) -> String {
     serde_json::to_string(msg).expect("protocol messages always serialize")
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use hostable_protocol::{HostToPhone, Widget};
-    use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver};
-
-    fn drain<T: serde::de::DeserializeOwned>(rx: &mut UnboundedReceiver<String>) -> Vec<T> {
-        let mut out = Vec::new();
-        while let Ok(text) = rx.try_recv() {
-            out.push(serde_json::from_str(&text).unwrap());
-        }
-        out
-    }
-
-    #[test]
-    fn codes_use_only_unambiguous_letters() {
-        for _ in 0..200 {
-            let code = new_code();
-            assert_eq!(code.len(), CODE_LEN);
-            assert!(code.bytes().all(|b| CODE_LETTERS.contains(&b)));
-        }
-    }
-
-    #[test]
-    fn names_are_cleaned() {
-        assert_eq!(clean_name("  Ana \n  B\u{7}o "), Some("Ana Bo".into()));
-        assert_eq!(clean_name("   "), None);
-        assert_eq!(clean_name(&"x".repeat(100)).unwrap().len(), MAX_NAME_CHARS);
-    }
-
-    #[test]
-    fn join_play_and_rejoin() {
-        let mut reg = Registry::default();
-        let (host_tx, mut host_rx) = unbounded_channel();
-        let code = reg.create_room(host_tx);
-        let created: Vec<RelayToHost> = drain(&mut host_rx);
-        assert!(matches!(&created[0], RelayToHost::RoomCreated { code: c, .. } if *c == code));
-
-        // A phone joins with a lower-case code.
-        let (phone_tx, mut phone_rx) = unbounded_channel();
-        let player = reg.join(&code.to_lowercase(), "Ana", phone_tx).unwrap();
-        let RelayToPhone::Joined { player_token, .. } = drain(&mut phone_rx).remove(0) else {
-            panic!("expected Joined");
-        };
-        assert_eq!(
-            drain::<RelayToHost>(&mut host_rx),
-            vec![RelayToHost::PlayerJoined {
-                player,
-                name: "Ana".into()
-            }]
-        );
-
-        // Host to phone and phone to host.
-        let message = HostToPhone::Ui {
-            version: 1,
-            ui: Widget::text("hi"),
-        };
-        reg.from_host(
-            &code,
-            HostToRelay::ToPlayer {
-                player,
-                message: message.clone(),
-            },
-        );
-        assert_eq!(
-            drain::<RelayToPhone>(&mut phone_rx),
-            vec![RelayToPhone::FromHost { message }]
-        );
-        reg.from_player(&code, player, PhoneInput::press("buzz"));
-        assert_eq!(
-            drain::<RelayToHost>(&mut host_rx),
-            vec![RelayToHost::FromPlayer {
-                player,
-                input: PhoneInput::press("buzz")
-            }]
-        );
-
-        // The phone drops and comes back with its token.
-        reg.player_left(&code, player);
-        assert_eq!(
-            drain::<RelayToHost>(&mut host_rx),
-            vec![RelayToHost::PlayerAway { player }]
-        );
-        let (phone_tx, mut phone_rx) = unbounded_channel();
-        assert_eq!(
-            reg.rejoin(&code, "wrong", phone_tx.clone()),
-            Err(RelayError::BadToken)
-        );
-        assert_eq!(reg.rejoin(&code, &player_token, phone_tx), Ok(player));
-        assert_eq!(
-            drain::<RelayToPhone>(&mut phone_rx),
-            vec![RelayToPhone::Rejoined { player }]
-        );
-    }
-
-    #[test]
-    fn locked_rooms_refuse_new_players() {
-        let mut reg = Registry::default();
-        let (host_tx, _host_rx) = unbounded_channel();
-        let code = reg.create_room(host_tx);
-        reg.from_host(&code, HostToRelay::Lock { locked: true });
-        let (phone_tx, _rx) = unbounded_channel();
-        assert_eq!(
-            reg.join(&code, "Ana", phone_tx),
-            Err(RelayError::RoomLocked)
-        );
-    }
-
-    #[test]
-    fn a_room_waits_for_its_host_then_closes() {
-        let mut reg = Registry::default();
-        let (host_tx, mut host_rx) = unbounded_channel();
-        let code = reg.create_room(host_tx);
-        let RelayToHost::RoomCreated { host_token, .. } = drain(&mut host_rx).remove(0) else {
-            panic!("expected RoomCreated");
-        };
-        let (phone_tx, mut phone_rx) = unbounded_channel();
-        reg.join(&code, "Ana", phone_tx).unwrap();
-        drain::<RelayToPhone>(&mut phone_rx);
-
-        let t0 = Instant::now();
-        reg.host_left(&code, t0);
-        assert_eq!(
-            drain::<RelayToPhone>(&mut phone_rx),
-            vec![RelayToPhone::HostAway]
-        );
-        reg.sweep(t0 + Duration::from_secs(60));
-        let (host_tx, _host_rx) = unbounded_channel();
-        assert_eq!(reg.reclaim_room(&code, &host_token, host_tx), Ok(()));
-
-        reg.host_left(&code, t0);
-        reg.sweep(t0 + HOST_GRACE + Duration::from_secs(1));
-        assert_eq!(reg.room_count(), 0);
-    }
-}
+mod tests;
