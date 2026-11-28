@@ -202,8 +202,8 @@ phase with green tests.
 - [x] Phase 6: pack tool, signing, TS authoring, creator docs, takedown
 - [x] Phase 7: sandbox objects, spectators, PWA, Capacitor config, deploy files
 - [x] `scripts/verify.sh` written, in CI, audited
-- [ ] Closeout turn: verify.sh output quoted, `VERIFY: ALL GREEN`
-- [ ] All criteria hold → safe to archive
+- [x] Closeout turn: verify.sh output quoted, `VERIFY: ALL GREEN`
+- [x] All criteria hold → safe to archive
 
 ## Final output (short bullets under exactly these three headers)
 
