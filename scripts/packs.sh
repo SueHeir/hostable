@@ -26,7 +26,16 @@ dev_pub="$(cat "$keys/dev.pub")"
 
 # ---- good packs ----
 (cd examples/ts-tictactoe && npm ci --no-audit --no-fund --silent)
-good=(packs/buzzer packs/wizards-duel packs/tideholm packs/riposte packs/standard-deck examples/ts-tictactoe)
+# Every pack source in packs/ (except packs/bad) plus the TypeScript example.
+good=()
+for d in packs/*/; do
+  d="${d%/}"
+  [ "$d" = packs/bad ] && continue
+  [ -f "$d/manifest.json" ] || { echo "$d has no manifest.json"; exit 1; }
+  good+=("$d")
+done
+good+=(examples/ts-tictactoe)
+[ "${#good[@]}" -ge 6 ] || { echo "expected at least 6 good packs, found ${#good[@]}"; exit 1; }
 pins="$work/pins.json"
 echo '{"pins":{}}' > "$pins"
 for dir in "${good[@]}"; do

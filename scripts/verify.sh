@@ -37,14 +37,34 @@ run() {
   want "$name" || return 0
   local log="$logs/$name.log"
   echo "---- $name"
-  if "$@" >"$log" 2>&1; then
+  # Run the check in a subshell with errexit on, and NOT as an `if`
+  # condition (that would switch errexit off): any failing command in the
+  # check fails it, not only the last one.
+  local status=0
+  set +e
+  (
+    set -euo pipefail
+    "$@"
+  ) >"$log" 2>&1
+  status=$?
+  set -e
+  if [ "$status" -eq 0 ]; then
     echo "PASS $name"
     ran=$((ran + 1))
   else
-    echo "FAIL $name (log: $log)"
+    echo "FAIL $name (exit $status, log: $log)"
     tail -n 60 "$log"
     exit 1
   fi
+}
+
+# require_tests LOG NAME...: each named test must have run and passed.
+require_tests() {
+  local log="$1"
+  shift
+  for t in "$@"; do
+    grep -qE "^test ([A-Za-z0-9_]+::)*$t \.\.\. ok\$" "$log" || { echo "missing or failed test: $t"; return 1; }
+  done
 }
 
 # ---------------------------------------------------------------------------
@@ -56,7 +76,7 @@ check_clippy() { cargo clippy --workspace --all-targets -- -D warnings; }
 check_test() {
   cargo test --workspace 2>&1 | tee "$logs/test-output.txt"
   # The tests the definition of done names must have run.
-  for t in \
+  require_tests "$logs/test-output.txt" \
     an_infinite_loop_runs_out_of_fuel_and_the_host_carries_on \
     a_memory_bomb_hits_the_cap \
     malformed_outcomes_are_rejected \
@@ -65,9 +85,7 @@ check_test() {
     async_games_pass_at_once_for_seats_that_cannot_respond \
     a_phone_is_limited_to_sixty_messages_a_second \
     too_many_wrong_codes_from_one_ip_are_refused \
-    oversized_phone_messages_close_the_socket; do
-    grep -q "$t ... ok" "$logs/test-output.txt" || { echo "missing test: $t"; return 1; }
-  done
+    oversized_phone_messages_close_the_socket
   ! grep -q "test result: FAILED" "$logs/test-output.txt"
 }
 
@@ -104,7 +122,7 @@ check_packs() { "$root/scripts/packs.sh"; }
 
 check_e2e() {
   cargo test -p hostable-e2e -- --include-ignored --test-threads 2 2>&1 | tee "$logs/e2e-output.txt"
-  for t in \
+  require_tests "$logs/e2e-output.txt" \
     buzzer_plays_to_a_winner_with_a_reconnect \
     wizards_duel_plays_to_the_end \
     tideholm_plays_to_the_end \
@@ -113,13 +131,15 @@ check_e2e() {
     cloud_restart_mid_game_loses_nothing \
     async_game_turn_timeout \
     desktop_to_cloud_handoff_keeps_seats \
-    no_phone_ever_sees_another_seats_private_view; do
-    grep -q "$t ... ok" "$logs/e2e-output.txt" || { echo "missing e2e test: $t"; return 1; }
-  done
+    no_phone_ever_sees_another_seats_private_view \
+    the_packs_on_disk_load_and_match_their_native_rules
   ! grep -q "test result: FAILED" "$logs/e2e-output.txt"
 }
 
 check_browser() {
+  # The Playwright setup starts these debug binaries; build them from the
+  # current source first.
+  cargo build -p hostable-relay -p hostable-cloud
   cd "$root/client"
   npx playwright install chromium
   npm run e2e
