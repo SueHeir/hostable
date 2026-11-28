@@ -165,30 +165,30 @@ phase with green tests.
 `scripts/verify.sh` (bash, `set -euo pipefail`) runs every item below in order, prints one
 `PASS <name>` line per item, and ends with exactly `VERIFY: ALL GREEN`. Each item is also a box here.
 
-- [ ] `fmt` — `cargo fmt --all --check`
-- [ ] `clippy` — `cargo clippy --workspace --all-targets -- -D warnings`
-- [ ] `test` — `cargo test --workspace` (includes sandbox fuel/memory/malformed-outcome tests,
+- [x] `fmt` — `cargo fmt --all --check`
+- [x] `clippy` — `cargo clippy --workspace --all-targets -- -D warnings`
+- [x] `test` — `cargo test --workspace` (includes sandbox fuel/memory/malformed-outcome tests,
       reaction-window tests, relay rate-limit tests, every game's rules tests)
-- [ ] `no-stubs` — `! grep -rnE "todo!|unimplemented!" crates games`
-- [ ] `client` — in `client/`: install, `typecheck`, unit tests, `build`, gzipped join-route JS
+- [x] `no-stubs` — `! grep -rnE "todo!|unimplemented!" crates games`
+- [x] `client` — in `client/`: install, `typecheck`, unit tests, `build`, gzipped join-route JS
       under 150 KB, generated protocol types match `ts-rs` output (no diff)
-- [ ] `packs` — build every pack in `packs/` and `examples/ts-tictactoe`, then
+- [x] `packs` — build every pack in `packs/` and `examples/ts-tictactoe`, then
       `hostable-pack check` passes on each; `hostable-pack check` FAILS on every fixture in
       `packs/bad/` (unsigned, wrong key, forbidden file type, oversized, crashing rules, infinite loop)
-- [ ] `e2e` — `cargo test -p hostable-e2e -- --include-ignored`: real relay + cloud host processes
+- [x] `e2e` — `cargo test -p hostable-e2e -- --include-ignored`: real relay + cloud host processes
       and simulated phones play to completion buzzer, wizards-duel, the trading game and the card
       duel; covers phone reconnect, host reclaim, server restart mid-game with no state loss, an
       async game with turn timeout, a nested reaction chain, desktop-to-cloud handoff, and that no
       phone ever receives another seat's private view
-- [ ] `browser` — Playwright (`client` `e2e` script, headless Chromium): three browser phones join a
+- [x] `browser` — Playwright (`client` `e2e` script, headless Chromium): three browser phones join a
       cloud-hosted buzzer room by code and by `/j/<CODE>`, play to a winner, one reloads mid-game and
       keeps its seat; a remote player opens `/g/<id>` and sees the table view
-- [ ] `desktop` — `cargo build --release -p hostable-desktop` and
+- [x] `desktop` — `cargo build --release -p hostable-desktop` and
       `hostable-desktop --smoke-test --relay ws://127.0.0.1:<port>` against a locally started relay
       exits 0
-- [ ] `ip-check` — `scripts/ip_check.sh`: case-insensitive grep for the banned names in the IP rule
+- [x] `ip-check` — `scripts/ip_check.sh`: case-insensitive grep for the banned names in the IP rule
       over everything except `docs/design.md` and `.goal/`, must find nothing
-- [ ] A SEPARATE agent audited `scripts/verify.sh` (each item really runs, can't pass vacuously) and
+- [x] A SEPARATE agent audited `scripts/verify.sh` (each item really runs, can't pass vacuously) and
       re-derived load-bearing claims; its report is saved at `.goal/AUDIT-<stamp>.md`.
 
 ## Progress checklist (tick IN THIS FILE as you go — this is the resume state)
@@ -201,7 +201,7 @@ phase with green tests.
 - [x] Phase 5: card duel with responses and deck builder
 - [x] Phase 6: pack tool, signing, TS authoring, creator docs, takedown
 - [x] Phase 7: sandbox objects, spectators, PWA, Capacitor config, deploy files
-- [ ] `scripts/verify.sh` written, in CI, audited
+- [x] `scripts/verify.sh` written, in CI, audited
 - [ ] Closeout turn: verify.sh output quoted, `VERIFY: ALL GREEN`
 - [ ] All criteria hold → safe to archive
 

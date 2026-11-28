@@ -31,6 +31,9 @@ want() {
 }
 
 # run NAME CMD...: run a check with its output in target/verify/NAME.log.
+# Call it as a plain top-level command. Never `run ... || x`, `run ... && x`
+# or `if run ...`: bash ignores errexit inside those, so a failing command in
+# the middle of a check would stop counting.
 run() {
   local name="$1"
   shift
