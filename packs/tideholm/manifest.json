@@ -1,0 +1,12 @@
+{
+  "id": "tideholm",
+  "name": "Tideholm",
+  "version": "0.1.0",
+  "players": { "min": 3, "max": 4 },
+  "api": 1,
+  "level": "scripted",
+  "rules": "rules.wasm",
+  "author": "Hostable",
+  "description": "Islanders of a tidal archipelago build huts, lodges and causeways, trade reed, clay, salt, fish and copper, and race to ten points.",
+  "build": { "rust": "hostable-tideholm" }
+}

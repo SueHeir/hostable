@@ -1,0 +1,24 @@
+[package]
+name = "hostable-host-runtime"
+description = "The host loop shared by the desktop and cloud hosts: relay link, room driver, saves"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+hostable-protocol.workspace = true
+hostable-rules-api.workspace = true
+hostable-host-core.workspace = true
+hostable-sandbox.workspace = true
+hostable-pack.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+futures-util.workspace = true
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+[dev-dependencies]
+hostable-relay = { path = "../relay" }
+hostable-buzzer.workspace = true

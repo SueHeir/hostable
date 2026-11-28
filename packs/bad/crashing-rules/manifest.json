@@ -1,0 +1,1 @@
+{ "id": "bad-crashing-rules", "name": "Bad: crashing-rules", "version": "0.1.0", "players": { "min": 2, "max": 2 }, "api": 1, "rules": "rules.wasm" , "build": { "wat": "rules.wat" } }

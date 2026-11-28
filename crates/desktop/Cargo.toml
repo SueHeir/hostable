@@ -1,0 +1,65 @@
+[package]
+name = "hostable-desktop"
+description = "The Hostable desktop host: draws the table on a shared screen while phones join by QR code"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "hostable-desktop"
+path = "src/main.rs"
+
+[features]
+default = []
+# A short synthesized beep for `Event::Sound`. Off by default: Bevy audio
+# needs ALSA headers on Linux.
+sound = ["bevy/bevy_audio"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+futures-util.workspace = true
+# `wss://` relays (the default) need TLS.
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-webpki-roots"] }
+hostable-protocol.workspace = true
+hostable-rules-api.workspace = true
+hostable-host-core.workspace = true
+hostable-host-runtime.workspace = true
+hostable-sandbox.workspace = true
+hostable-buzzer.workspace = true
+qrcode = { version = "0.14", default-features = false }
+bevy = { version = "0.20", default-features = false, features = [
+  "std",
+  "async_executor",
+  "multi_threaded",
+  "bevy_asset",
+  "bevy_log",
+  "bevy_window",
+  "bevy_winit",
+  "x11",
+  "bevy_render",
+  "bevy_core_pipeline",
+  "bevy_camera",
+  "bevy_color",
+  "bevy_image",
+  "bevy_mesh",
+  "bevy_shader",
+  "bevy_material",
+  "bevy_light",
+  "bevy_pbr",
+  "bevy_sprite",
+  "bevy_sprite_render",
+  "bevy_text",
+  "default_font",
+  "bevy_ui",
+  "bevy_ui_render",
+  "tonemapping_luts",
+  "ktx2",
+  "zstd_rust",
+  "png",
+] }
+
+[dev-dependencies]
+hostable-relay.workspace = true

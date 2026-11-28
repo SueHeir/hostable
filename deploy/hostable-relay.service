@@ -1,0 +1,21 @@
+[Unit]
+Description=Hostable relay (rooms, codes, message forwarding)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=hostable
+Group=hostable
+ExecStart=/opt/hostable/bin/hostable-relay --addr 127.0.0.1:8787 --state /var/lib/hostable/relay-state.json --trust-proxy
+Restart=always
+RestartSec=2
+StateDirectory=hostable
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/hostable
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target

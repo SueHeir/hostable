@@ -1,0 +1,13 @@
+{
+  "id": "wizards-duel",
+  "name": "Wizards: Duel",
+  "version": "0.1.0",
+  "players": { "min": 2, "max": 4 },
+  "api": 1,
+  "level": "native",
+  "rules": "rules.wasm",
+  "renderer": "wizards-duel",
+  "author": "Hostable, using the Wizards rules",
+  "description": "Wizards face off on a hex arena: walk, claim mana and cast spells until one is left standing.",
+  "build": { "rust": "hostable-wizards-duel" }
+}

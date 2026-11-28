@@ -1,0 +1,1 @@
+{ "id": "bad-forbidden-file", "name": "Bad: forbidden-file", "version": "0.1.0", "players": { "min": 2, "max": 2 }, "api": 1, "rules": "rules.js"  }

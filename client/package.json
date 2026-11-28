@@ -1,0 +1,30 @@
+{
+  "name": "hostable-client",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "scripts": {
+    "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"test/**/*.test.ts\" \"test/**/*.test.tsx\"",
+    "build": "vite build",
+    "size": "node scripts/size.mjs",
+    "icons": "node scripts/icons.mjs",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "preact": "^11.2.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "@types/node": "^26.6.11",
+    "happy-dom": "^21.0.4",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.4.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

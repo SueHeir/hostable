@@ -1,0 +1,32 @@
+[Unit]
+Description=Hostable cloud host (remote and async games)
+After=network-online.target hostable-relay.service
+Wants=network-online.target
+Requires=hostable-relay.service
+
+[Service]
+User=hostable
+Group=hostable
+# Secrets (HOSTABLE_ADMIN_TOKEN, HOSTABLE_VAPID_PRIVATE_KEY,
+# HOSTABLE_VAPID_SUBJECT) live in this file on the droplet only, mode 600.
+EnvironmentFile=/etc/hostable/cloud.env
+ExecStart=/opt/hostable/bin/hostable-cloud \
+  --addr 127.0.0.1:8790 \
+  --relay ws://127.0.0.1:8787 \
+  --public-relay wss://dinkydelvers.com/play/ws/phone \
+  --base /play/ \
+  --db /var/lib/hostable/cloud.db \
+  --packs /opt/hostable/packs \
+  --client-dir /opt/hostable/client
+Restart=always
+RestartSec=2
+StateDirectory=hostable
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/var/lib/hostable
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,2 @@
+function handle(r){switch(r.call){case "info":return{min_seats:2,max_seats:2,api:1};case "setup":return{state:{n:0}};case "on_action":return{state:{n:r.state.n+1}};case "on_timeout":return{state:r.state};case "table_view":return{title:"Fixture",status:"",players:[],log:[]};case "phone_view":return{type:"button",id:"go",label:"Go"};case "can_respond":return true}}
+globalThis.__hostable_dispatch=(t)=>JSON.stringify({ok:handle(JSON.parse(t))});

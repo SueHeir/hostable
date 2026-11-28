@@ -1,0 +1,16 @@
+[package]
+name = "hostable-tabletop"
+description = "The sandbox level: generic table objects (cards, decks, dice, tokens) with no rules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+hostable-protocol.workspace = true
+hostable-rules-api.workspace = true
+
+[dev-dependencies]
+hostable-host-core.workspace = true
