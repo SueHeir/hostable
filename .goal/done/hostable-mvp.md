@@ -229,3 +229,6 @@ exactly:
 `mkdir -p <REPO>/.goal/done && mv <REPO>/.goal/hostable-mvp.md <REPO>/.goal/done/hostable-mvp.md`
 (with `<REPO>` the absolute repo root). Then confirm the destination exists and the original path no
 longer does.
+
+---
+Completed 2026-11-27: scripts/verify.sh printed VERIFY: ALL GREEN in the closeout run; independent audit AUDIT: PASS (.goal/AUDIT-20261127.md); draft PR https://github.com/SueHeir/hostable/pull/2.
