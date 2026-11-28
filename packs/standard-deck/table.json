@@ -1,0 +1,352 @@
+{
+ "title": "Standard deck",
+ "width": 1200,
+ "height": 760,
+ "background": "#1e5133",
+ "deal": 0,
+ "objects": [
+  {
+   "kind": "board",
+   "id": "felt",
+   "x": 20,
+   "y": 20,
+   "w": 1160,
+   "h": 720,
+   "color": "#2d6a4f",
+   "label": ""
+  },
+  {
+   "kind": "deck",
+   "id": "deck",
+   "x": 80,
+   "y": 80,
+   "cards": [
+    {
+     "id": "A-spades",
+     "face": "A♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "2-spades",
+     "face": "2♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "3-spades",
+     "face": "3♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "4-spades",
+     "face": "4♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "5-spades",
+     "face": "5♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "6-spades",
+     "face": "6♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "7-spades",
+     "face": "7♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "8-spades",
+     "face": "8♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "9-spades",
+     "face": "9♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "10-spades",
+     "face": "10♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "J-spades",
+     "face": "J♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "Q-spades",
+     "face": "Q♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "K-spades",
+     "face": "K♠",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "A-hearts",
+     "face": "A♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "2-hearts",
+     "face": "2♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "3-hearts",
+     "face": "3♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "4-hearts",
+     "face": "4♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "5-hearts",
+     "face": "5♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "6-hearts",
+     "face": "6♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "7-hearts",
+     "face": "7♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "8-hearts",
+     "face": "8♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "9-hearts",
+     "face": "9♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "10-hearts",
+     "face": "10♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "J-hearts",
+     "face": "J♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "Q-hearts",
+     "face": "Q♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "K-hearts",
+     "face": "K♥",
+     "color": "#c0392b"
+    },
+    {
+     "id": "A-diamonds",
+     "face": "A♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "2-diamonds",
+     "face": "2♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "3-diamonds",
+     "face": "3♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "4-diamonds",
+     "face": "4♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "5-diamonds",
+     "face": "5♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "6-diamonds",
+     "face": "6♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "7-diamonds",
+     "face": "7♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "8-diamonds",
+     "face": "8♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "9-diamonds",
+     "face": "9♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "10-diamonds",
+     "face": "10♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "J-diamonds",
+     "face": "J♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "Q-diamonds",
+     "face": "Q♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "K-diamonds",
+     "face": "K♦",
+     "color": "#c0392b"
+    },
+    {
+     "id": "A-clubs",
+     "face": "A♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "2-clubs",
+     "face": "2♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "3-clubs",
+     "face": "3♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "4-clubs",
+     "face": "4♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "5-clubs",
+     "face": "5♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "6-clubs",
+     "face": "6♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "7-clubs",
+     "face": "7♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "8-clubs",
+     "face": "8♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "9-clubs",
+     "face": "9♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "10-clubs",
+     "face": "10♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "J-clubs",
+     "face": "J♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "Q-clubs",
+     "face": "Q♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "K-clubs",
+     "face": "K♣",
+     "color": "#1b1b1b"
+    },
+    {
+     "id": "joker-1",
+     "face": "Joker",
+     "color": "#8e44ad"
+    },
+    {
+     "id": "joker-2",
+     "face": "Joker",
+     "color": "#8e44ad"
+    }
+   ],
+   "label": "Deck"
+  },
+  {
+   "kind": "zone",
+   "id": "discard",
+   "x": 220,
+   "y": 80,
+   "w": 90,
+   "h": 120,
+   "label": "Discard"
+  },
+  {
+   "kind": "zone",
+   "id": "middle",
+   "x": 420,
+   "y": 260,
+   "w": 360,
+   "h": 220,
+   "label": "Table"
+  },
+  {
+   "kind": "die",
+   "id": "die-1",
+   "x": 1000,
+   "y": 80,
+   "sides": 6
+  },
+  {
+   "kind": "die",
+   "id": "die-2",
+   "x": 1060,
+   "y": 80,
+   "sides": 6
+  },
+  {
+   "kind": "counter",
+   "id": "score-1",
+   "x": 980,
+   "y": 600,
+   "label": "Score A"
+  },
+  {
+   "kind": "counter",
+   "id": "score-2",
+   "x": 980,
+   "y": 660,
+   "label": "Score B"
+  },
+  {
+   "kind": "token",
+   "id": "dealer",
+   "x": 80,
+   "y": 660,
+   "color": "#f3a712",
+   "label": "Dealer"
+  }
+ ]
+}

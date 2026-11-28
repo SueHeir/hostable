@@ -1,0 +1,19 @@
+{
+  "name": "hostable-ts-tictactoe",
+  "version": "0.1.0",
+  "description": "Noughts and crosses for Hostable, written in TypeScript",
+  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc --noEmit && esbuild src/rules.ts --bundle --format=iife --target=es2020 --outfile=dist/rules.js"
+  },
+  "dependencies": {
+    "@hostable/sdk": "file:../../sdk/typescript"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "typescript": "5.9.3"
+  }
+}

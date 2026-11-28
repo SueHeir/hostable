@@ -6,14 +6,41 @@ on:
   pull_request:
 
 jobs:
-  test:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
+      # wizards-rules comes from a private repo; a read-only token for it is
+      # stored as the WIZARDS_TOKEN secret.
+      - name: Let cargo fetch the wizards rules
+        env:
+          WIZARDS_TOKEN: ${{ secrets.WIZARDS_TOKEN }}
+        run: |
+          if [ -n "$WIZARDS_TOKEN" ]; then
+            git config --global url."https://x-access-token:${WIZARDS_TOKEN}@github.com/SueHeir/wizards".insteadOf "https://github.com/SueHeir/wizards"
+          fi
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
       - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
-      - run: cargo test --workspace
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            client/package-lock.json
+            examples/ts-tictactoe/package-lock.json
+      - name: Desktop build dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends pkg-config libasound2-dev libudev-dev libx11-dev libxcursor-dev libxrandr-dev libxi-dev libwayland-dev libxkbcommon-dev sqlite3
+      - name: Playwright browser dependencies
+        run: cd client && npm ci && npx playwright install --with-deps chromium
+      - name: Everything in the definition of done
+        run: scripts/verify.sh
+      - name: Logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: verify-logs
+          path: target/verify/*.log

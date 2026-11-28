@@ -85,6 +85,10 @@ pub enum RelayToHost {
     },
     RoomReclaimed {
         code: RoomCode,
+        /// Players whose phones are connected right now, so the host can
+        /// send them their screens.
+        #[serde(default)]
+        connected: Vec<PlayerId>,
     },
     PlayerJoined {
         player: PlayerId,

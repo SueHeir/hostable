@@ -542,3 +542,22 @@ fn json_rules_run_in_a_dynamic_room() {
 }
 
 type DynRulesBox = hostable_rules_api::DynRules;
+
+#[test]
+fn a_game_turn_timer_overrides_turns_and_caps_reactions() {
+    let mut room = Room::new(Reactor, 1)
+        .with_pace(Pace::Async)
+        .with_turn_timer(Some(1_000));
+    room.player_joined(0, "A".into(), String::new(), 0);
+    room.player_joined(1, "B".into(), String::new(), 0);
+    room.start(0).unwrap();
+    assert_eq!(room.next_deadline(), Some(1_000));
+    room.tick(1_000);
+    assert_eq!(room.state().unwrap().timeouts, 1);
+    press(&mut room, 0, "cast", 1_500);
+    // The reaction window's hour-long async timeout is capped too.
+    assert_eq!(room.next_deadline(), Some(2_500));
+    let snap = serde_json::to_string(&room.snapshot()).unwrap();
+    let room = Room::restore(Reactor, serde_json::from_str(&snap).unwrap());
+    assert_eq!(room.turn_timer(), Some(1_000));
+}

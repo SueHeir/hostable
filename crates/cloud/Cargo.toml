@@ -1,0 +1,37 @@
+[package]
+name = "hostable-cloud"
+description = "The Hostable cloud host: remote and async games, share links, Web Push"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "hostable-cloud"
+path = "src/main.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+rand.workspace = true
+hostable-protocol.workspace = true
+hostable-rules-api.workspace = true
+hostable-host-core.workspace = true
+hostable-host-runtime.workspace = true
+hostable-sandbox.workspace = true
+hostable-pack.workspace = true
+axum.workspace = true
+tokio.workspace = true
+futures-util.workspace = true
+rusqlite = { version = "0.40", features = ["bundled"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+p256 = { version = "0.13", features = ["ecdh", "ecdsa"] }
+hkdf = "0.12"
+hmac = "0.12"
+sha2-push = { package = "sha2", version = "0.10" }
+aes-gcm = "0.10"
+base64 = "0.23"
+
+[dev-dependencies]
+hostable-relay.workspace = true
+tokio-tungstenite.workspace = true

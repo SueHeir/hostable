@@ -1,0 +1,12 @@
+{
+  "id": "ts-tictactoe",
+  "name": "Noughts and crosses",
+  "version": "0.1.0",
+  "players": { "min": 2, "max": 2 },
+  "api": 1,
+  "level": "scripted",
+  "rules": "rules.js",
+  "author": "Hostable",
+  "description": "Three in a row wins. An example of a game written in TypeScript.",
+  "build": { "npm": "." }
+}

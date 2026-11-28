@@ -53,7 +53,12 @@ __attribute__((export_name("hostable_load"))) uint64_t hostable_load(const char 
   JSValue g = JS_GetGlobalObject(ctx);
   JS_SetPropertyStr(ctx, g, "__hostable_log", JS_NewCFunction(ctx, js_log, "log", 1));
   JS_FreeValue(ctx, g);
-  JSValue r = JS_Eval(ctx, src, len, "rules.js", JS_EVAL_TYPE_GLOBAL);
+  /* JS_Eval needs a NUL after the source. */
+  char *code = malloc((size_t)len + 1);
+  if (!code) return err("out of memory");
+  memcpy(code, src, len); code[len] = 0;
+  JSValue r = JS_Eval(ctx, code, len, "rules.js", JS_EVAL_TYPE_GLOBAL);
+  free(code);
   if (JS_IsException(r)) { JSValue e = JS_GetException(ctx); const char *m = JS_ToCString(ctx, e); uint64_t o = err(m ? m : "load failed"); JS_FreeCString(ctx, m); JS_FreeValue(ctx,e); return o; }
   JS_FreeValue(ctx, r); return pack("{\"ok\":null}", 11);
 }

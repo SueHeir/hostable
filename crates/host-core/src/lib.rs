@@ -150,6 +150,8 @@ pub struct Snapshot<R: Rules> {
     paused: Option<String>,
     #[serde(default)]
     table_version: u64,
+    #[serde(default)]
+    turn_timer_ms: Option<u64>,
 }
 
 /// A room on the host: the players in it and the game they're playing.
@@ -167,6 +169,7 @@ pub struct Room<R: Rules> {
     finished: Option<Results>,
     paused: Option<String>,
     now_ms: u64,
+    turn_timer_ms: Option<u64>,
 }
 
 impl<R: Rules> Room<R> {
@@ -185,7 +188,19 @@ impl<R: Rules> Room<R> {
             finished: None,
             paused: None,
             now_ms: 0,
+            turn_timer_ms: None,
         }
+    }
+
+    /// The game's turn timer: replaces the rules' timeout for turns, and
+    /// caps reaction windows.
+    pub fn with_turn_timer(mut self, ms: Option<u64>) -> Self {
+        self.turn_timer_ms = ms;
+        self
+    }
+
+    pub fn turn_timer(&self) -> Option<u64> {
+        self.turn_timer_ms
     }
 
     /// The game's display name, shown on phones.
@@ -462,6 +477,15 @@ impl<R: Rules> Room<R> {
         self.refresh_phones()
     }
 
+    /// Pause the game from outside (for example when its pack is taken
+    /// down). Phones show the reason.
+    pub fn suspend(&mut self, reason: String) -> Vec<Effect> {
+        let mut effects = Vec::new();
+        self.pause(reason, &mut effects);
+        effects.extend(self.refresh_phones());
+        effects
+    }
+
     /// The current shared table, or `None` before the game starts.
     pub fn table_view(&self) -> Option<Result<Value, RulesError>> {
         self.state.as_ref().map(|s| self.rules.table_view(s))
@@ -572,10 +596,17 @@ impl<R: Rules> Room<R> {
                     kept
                 }
                 None => {
-                    let timeout = match pace {
+                    let mut timeout = match pace {
                         Pace::Live => wait.live_timeout_ms,
                         Pace::Async => wait.async_timeout_ms,
                     };
+                    if let Some(timer) = self.turn_timer_ms {
+                        timeout = if wait.reaction {
+                            timeout.min(timer)
+                        } else {
+                            timer
+                        };
+                    }
                     if let Some(player) = self.player_in(wait.seat) {
                         effects.push(Effect::Notify {
                             player,
@@ -703,6 +734,7 @@ impl<R: Rules> Room<R> {
             finished: self.finished.clone(),
             paused: self.paused.clone(),
             table_version: self.table_version,
+            turn_timer_ms: self.turn_timer_ms,
         }
     }
 
@@ -735,6 +767,7 @@ impl<R: Rules> Room<R> {
             finished: snapshot.finished,
             paused: snapshot.paused,
             now_ms,
+            turn_timer_ms: snapshot.turn_timer_ms,
         }
     }
 
@@ -882,10 +915,14 @@ fn clean_color(color: &str) -> String {
 }
 
 fn is_push_subscription(v: &Value) -> bool {
-    let endpoint_ok = v
-        .get("endpoint")
-        .and_then(Value::as_str)
-        .is_some_and(|e| e.starts_with("https://") && e.len() < 1024);
+    // Push services are HTTPS; plain HTTP only to this machine (tests and
+    // local push servers).
+    let endpoint_ok = v.get("endpoint").and_then(Value::as_str).is_some_and(|e| {
+        e.len() < 1024
+            && (e.starts_with("https://")
+                || e.starts_with("http://127.0.0.1:")
+                || e.starts_with("http://localhost:"))
+    });
     let keys_ok = ["p256dh", "auth"].iter().all(|k| {
         v.get("keys")
             .and_then(|keys| keys.get(*k))

@@ -1,0 +1,19 @@
+[package]
+name = "hostable-wizards-duel"
+description = "Wizards PvP: a 2-4 player spell duel on a hex board, built on wizards-rules"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+hostable-sdk.workspace = true
+wizards-rules = { git = "https://github.com/SueHeir/wizards", rev = "a39bc91201cc6ddebeb9bce343ed005e3e70c0ac" }
+
+[dev-dependencies]
+hostable-host-core.workspace = true

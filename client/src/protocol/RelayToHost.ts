@@ -4,4 +4,9 @@ import type { PhoneInput } from "./PhoneInput";
 /**
  * What the relay sends to the host.
  */
-export type RelayToHost = { "type": "room_created", code: string, host_token: string, } | { "type": "room_reclaimed", code: string, } | { "type": "player_joined", player: number, name: string, color: string, } | { "type": "player_added", player: number, name: string, player_token: string, } | { "type": "player_returned", player: number, } | { "type": "player_away", player: number, } | { "type": "from_player", player: number, input: PhoneInput, } | { "type": "error", message: string, };
+export type RelayToHost = { "type": "room_created", code: string, host_token: string, } | { "type": "room_reclaimed", code: string, 
+/**
+ * Players whose phones are connected right now, so the host can
+ * send them their screens.
+ */
+connected: Array<number>, } | { "type": "player_joined", player: number, name: string, color: string, } | { "type": "player_added", player: number, name: string, player_token: string, } | { "type": "player_returned", player: number, } | { "type": "player_away", player: number, } | { "type": "from_player", player: number, input: PhoneInput, } | { "type": "error", message: string, };

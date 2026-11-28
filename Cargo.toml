@@ -7,7 +7,16 @@ members = [
     "crates/relay",
     "crates/sdk",
     "crates/sandbox",
+    "crates/pack",
+    "crates/tabletop",
+    "crates/host-runtime",
+    "crates/cloud",
+    "crates/desktop",
+    "crates/e2e",
     "games/buzzer",
+    "games/tideholm",
+    "games/riposte",
+    "games/wizards-duel",
 ]
 
 [workspace.package]
@@ -30,6 +39,11 @@ hostable-rules-api = { path = "crates/rules-api" }
 hostable-host-core = { path = "crates/host-core" }
 hostable-sdk = { path = "crates/sdk" }
 hostable-sandbox = { path = "crates/sandbox" }
+hostable-pack = { path = "crates/pack" }
+hostable-tabletop = { path = "crates/tabletop" }
+hostable-host-runtime = { path = "crates/host-runtime" }
+hostable-relay = { path = "crates/relay" }
+hostable-buzzer = { path = "games/buzzer" }
 
 # The sandbox interpreter is far too slow unoptimised for fuel budgets to mean
 # anything in tests.

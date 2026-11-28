@@ -14,6 +14,7 @@ use rand::{distributions::Alphanumeric, Rng};
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc::UnboundedSender;
 
+pub mod cli;
 pub mod limits;
 pub mod server;
 
@@ -263,8 +264,16 @@ impl Registry {
         });
         room.host = Some((conn, host));
         room.host_left_at = None;
+        let mut connected: Vec<PlayerId> = room
+            .players
+            .iter()
+            .filter(|(_, p)| p.outbox.is_some())
+            .map(|(id, _)| *id)
+            .collect();
+        connected.sort_unstable();
         room.to_host(&RelayToHost::RoomReclaimed {
             code: code.to_owned(),
+            connected,
         });
         room.to_all_players(&RelayToPhone::HostBack);
         Ok(conn)

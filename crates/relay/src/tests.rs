@@ -223,7 +223,10 @@ fn a_new_host_with_the_token_takes_over_and_the_old_one_is_cut_off() {
     ));
     assert_eq!(
         drain::<RelayToHost>(&mut new_rx),
-        vec![RelayToHost::RoomReclaimed { code: code.clone() }]
+        vec![RelayToHost::RoomReclaimed {
+            code: code.clone(),
+            connected: vec![]
+        }]
     );
     assert!(!reg.from_host(&code, old, HostToRelay::Lock { locked: true }));
     // The old host's socket closing doesn't strand the new one.

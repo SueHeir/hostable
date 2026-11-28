@@ -194,13 +194,13 @@ phase with green tests.
 ## Progress checklist (tick IN THIS FILE as you go — this is the resume state)
 
 - [x] Re-verified current state live; branch `goal/mvp` created
-- [ ] Phase 1 plumbing: client, desktop host + smoke test, relay limits
-- [ ] Phase 2: sandbox, SDK, reaction windows, full widgets, wizards-duel, packs
-- [ ] Phase 3: hex trading game
-- [ ] Phase 4: cloud host, async, push, handoff, quotas
-- [ ] Phase 5: card duel with responses and deck builder
-- [ ] Phase 6: pack tool, signing, TS authoring, creator docs, takedown
-- [ ] Phase 7: sandbox objects, spectators, PWA, Capacitor config, deploy files
+- [x] Phase 1 plumbing: client, desktop host + smoke test, relay limits
+- [x] Phase 2: sandbox, SDK, reaction windows, full widgets, wizards-duel, packs
+- [x] Phase 3: hex trading game
+- [x] Phase 4: cloud host, async, push, handoff, quotas
+- [x] Phase 5: card duel with responses and deck builder
+- [x] Phase 6: pack tool, signing, TS authoring, creator docs, takedown
+- [x] Phase 7: sandbox objects, spectators, PWA, Capacitor config, deploy files
 - [ ] `scripts/verify.sh` written, in CI, audited
 - [ ] Closeout turn: verify.sh output quoted, `VERIFY: ALL GREEN`
 - [ ] All criteria hold → safe to archive

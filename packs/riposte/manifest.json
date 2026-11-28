@@ -1,0 +1,12 @@
+{
+  "id": "riposte",
+  "name": "Riposte",
+  "version": "0.1.0",
+  "players": { "min": 2, "max": 2 },
+  "api": 1,
+  "level": "scripted",
+  "rules": "rules.wasm",
+  "author": "Hostable",
+  "description": "A lantern-lit card duel: build a deck on your phone, then answer every move with a feint of your own.",
+  "build": { "rust": "hostable-riposte" }
+}

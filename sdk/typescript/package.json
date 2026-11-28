@@ -1,0 +1,11 @@
+{
+  "name": "@hostable/sdk",
+  "version": "0.0.1",
+  "description": "Write Hostable game rules in TypeScript; they run in the QuickJS rules sandbox",
+  "license": "MIT OR Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "files": ["src"]
+}

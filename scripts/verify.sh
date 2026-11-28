@@ -130,15 +130,20 @@ check_desktop() {
   local port_file="$logs/relay-port.txt"
   "$root/target/release/hostable-relay" --addr 127.0.0.1:0 >"$port_file" 2>&1 &
   local relay_pid=$!
-  trap 'kill $relay_pid 2>/dev/null || true' RETURN
   local addr=""
   for _ in $(seq 1 100); do
     addr="$(sed -n 's/.*listening on //p' "$port_file" | head -1)"
     [ -n "$addr" ] && break
     sleep 0.1
   done
-  [ -n "$addr" ] || { echo "relay didn't start"; cat "$port_file"; return 1; }
-  "$root/target/release/hostable-desktop" --smoke-test --relay "ws://$addr" --players 3
+  if [ -z "$addr" ]; then
+    echo "relay didn't start"; cat "$port_file"; kill "$relay_pid" 2>/dev/null || true; return 1
+  fi
+  local code=0
+  "$root/target/release/hostable-desktop" --smoke-test --relay "ws://$addr" --players 3 || code=$?
+  kill "$relay_pid" 2>/dev/null || true
+  wait "$relay_pid" 2>/dev/null || true
+  return "$code"
 }
 
 check_ip() { "$root/scripts/ip_check.sh"; }

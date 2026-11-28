@@ -1,0 +1,21 @@
+# Hostable on dinkydelvers.com/play (testing). Paste inside the existing
+# `dinkydelvers.com { ... }` block, above any catch-all `file_server`.
+#
+#   /play/ws/*        -> the relay (WebSockets)
+#   /play/api/*,
+#   /play/config.json -> the cloud host
+#   /play/*           -> the cloud host, which also serves the web client
+#                        (with index.html for /j/CODE and /g/ID routes)
+#
+# handle_path strips the /play prefix, so the services see "/" paths.
+
+handle_path /play/ws/* {
+	rewrite * /ws{uri}
+	reverse_proxy 127.0.0.1:8787
+}
+
+handle_path /play/* {
+	reverse_proxy 127.0.0.1:8790
+}
+
+redir /play /play/ 308

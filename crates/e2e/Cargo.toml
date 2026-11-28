@@ -1,0 +1,44 @@
+[package]
+name = "hostable-e2e"
+description = "End-to-end tests: real relay and cloud processes, simulated phones, every game"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "e2e-relay"
+path = "src/bin/e2e-relay.rs"
+
+[[bin]]
+name = "e2e-cloud"
+path = "src/bin/e2e-cloud.rs"
+
+[dependencies]
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+tokio-tungstenite.workspace = true
+futures-util.workspace = true
+hostable-protocol.workspace = true
+hostable-rules-api.workspace = true
+hostable-host-core.workspace = true
+hostable-host-runtime.workspace = true
+hostable-relay.workspace = true
+hostable-cloud = { path = "../cloud" }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+
+[dev-dependencies]
+hostable-buzzer.workspace = true
+hostable-tideholm = { path = "../../games/tideholm" }
+hostable-riposte = { path = "../../games/riposte" }
+hostable-wizards-duel = { path = "../../games/wizards-duel" }
+rusqlite = { version = "0.40", features = ["bundled"] }
+axum.workspace = true
+p256 = { version = "0.13", features = ["ecdh"] }
+hkdf = "0.12"
+hmac = "0.12"
+sha2-push = { package = "sha2", version = "0.10" }
+aes-gcm = "0.10"
+base64 = "0.23"
